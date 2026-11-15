@@ -1,0 +1,5 @@
+[
+  { "name": "1-start.jpg", "query": "?shot=start&seed=1", "description": "Emberkeeper title screen with goal, controls, and start prompt." },
+  { "name": "2-play.jpg", "query": "?shot=play&seed=1", "description": "Wave three gameplay showing the flame meter, reserve, score, multiplier, storm, and upgrade choices." },
+  { "name": "3-end.jpg", "query": "?shot=end&seed=1", "description": "Flame lost score screen with final score, best score, wave, and restart prompt." }
+]
