@@ -1,10 +1,8 @@
-import { STEP } from './config.js';
-import { SCREEN_OVER, SCREEN_PLAY, SCREEN_TITLE } from './render.js';
-
-export function stageShot(name, world) {
-  world.reset();
-  if (name === 'start') return { screen: SCREEN_TITLE, best: 1840 };
-  if (name === 'end') { for (let i = 0; i < 1300; i += 1) world.step(STEP, Math.sin(i * 0.17), { feed: i % 83 === 0, buy: i === 95 }); world.state.dead = true; world.state.flame = 0; world.state.score = 1840; world.state.wave = 4; return { screen: SCREEN_OVER, best: 2190 }; }
-  for (let i = 0; i < 2500; i += 1) world.step(STEP, Math.sin(i * 0.035), { feed: i % 150 === 40, buy: i === 130 });
-  world.state.flame = 78; world.state.embers = 4; world.state.score = 1260; world.state.storm = 2.8; world.state.selected = 1; return { screen: SCREEN_PLAY, best: 2190 };
+import {LEVELS} from './config.js';
+export function stageShot(name,world){
+ world.reset(name==='end'?2:0);
+ if(name==='start')return{screen:'title',best:1650,score:0};
+ const l=LEVELS[world.state.level];
+ l.solution.forEach((angle,i)=>{if(world.state.mirrors[i]!==angle)world.rotate(i);});
+ return{screen:name==='end'?'win':'play',best:1650,score:name==='end'?1500:550};
 }

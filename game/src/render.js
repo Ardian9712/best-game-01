@@ -1,105 +1,35 @@
-import { FIELD, FONT, WEATHER } from './config.js';
-import { EMBER, DROP } from './world.js';
-
-export const SCREEN_TITLE = 'title';
-export const SCREEN_PLAY = 'play';
-export const SCREEN_OVER = 'over';
+import { WIDTH, HEIGHT, LEVELS } from './config.js';
 
 export function createRenderer(canvas) {
-  const ctx = canvas.getContext('2d');
-  const view = { scale: 1, x: 0, y: 0 };
-  function resize() {
-    const ratio = window.devicePixelRatio || 1;
-    canvas.width = Math.round(window.innerWidth * ratio); canvas.height = Math.round(window.innerHeight * ratio);
-    view.scale = Math.min(canvas.width / FIELD.width, canvas.height / FIELD.height);
-    view.x = (canvas.width - FIELD.width * view.scale) / 2; view.y = (canvas.height - FIELD.height * view.scale) / 2;
+  const ctx = canvas.getContext('2d'); let scale = 1; let ox = 0; let oy = 0;
+  const cell = 54; const left = 286; const top = 136;
+  function resize() { const dpr = devicePixelRatio || 1; canvas.width = innerWidth * dpr; canvas.height = innerHeight * dpr; scale = Math.min(canvas.width / WIDTH, canvas.height / HEIGHT); ox = (canvas.width - WIDTH * scale) / 2; oy = (canvas.height - HEIGHT * scale) / 2; }
+  function text(s, x, y, size, color = '#f2f2dc', align = 'left', weight = 700) { ctx.font = `${weight} ${size}px system-ui, sans-serif`; ctx.fillStyle = color; ctx.textAlign = align; ctx.textBaseline = 'alphabetic'; ctx.fillText(s, x, y); }
+  function pos(c) { return [left + (c[0] + 0.5) * cell, top + (c[1] + 0.5) * cell]; }
+  function line(a, b, color, active, t) { const [x1,y1] = pos(a); const [x2,y2] = pos(b); ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = active ? 7 : 3; ctx.lineCap = 'round'; ctx.globalAlpha = active ? 0.78 + Math.sin(t * 3) * 0.12 : 0.35; if (active) { ctx.shadowBlur = 22; ctx.shadowColor = color; } ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); ctx.restore(); }
+  function mirror(x,y,angle,lit=false) { const [cx,cy] = pos([x,y]); ctx.save(); ctx.translate(cx,cy); ctx.rotate(angle); ctx.fillStyle = lit ? '#7ce2dc' : '#87b8c7'; ctx.shadowBlur = lit ? 18 : 6; ctx.shadowColor = lit ? '#75f1da' : '#558195'; ctx.fillRect(-20,-5,40,10); ctx.strokeStyle = '#d9ffff'; ctx.lineWidth = 2; ctx.strokeRect(-20,-5,40,10); ctx.restore(); }
+  function seed(c,lit,grown,t) { const [x,y] = pos(c); ctx.save(); ctx.translate(x,y); if (lit) { ctx.shadowBlur = 28; ctx.shadowColor = '#ffbd57'; ctx.fillStyle = '#ffbd57'; ctx.beginPath(); ctx.arc(0,0,24 + Math.sin(t*4)*2,0,Math.PI*2); ctx.fill(); ctx.fillStyle = '#fff4b2'; ctx.beginPath(); ctx.arc(0,0,10,0,Math.PI*2); ctx.fill(); } else { ctx.fillStyle = '#56605c'; ctx.beginPath(); ctx.ellipse(0,9,15,8,-0.3,0,Math.PI*2); ctx.fill(); ctx.strokeStyle='#779080'; ctx.lineWidth=2; ctx.stroke(); } if (grown) { ctx.shadowBlur=13; ctx.shadowColor='#83e6a0'; ctx.strokeStyle='#73cc87'; ctx.lineWidth=6; ctx.beginPath(); ctx.moveTo(0,8); ctx.quadraticCurveTo(-3,-18,0,-43); ctx.stroke(); ctx.fillStyle='#74d68b'; ctx.beginPath(); ctx.ellipse(-10,-23,13,7,-0.5,0,Math.PI*2); ctx.ellipse(10,-34,13,7,0.5,0,Math.PI*2); ctx.fill(); } ctx.restore(); }
+  function background(t) { const g=ctx.createLinearGradient(0,0,0,HEIGHT);g.addColorStop(0,'#101a26');g.addColorStop(1,'#1a292c');ctx.fillStyle=g;ctx.fillRect(0,0,WIDTH,HEIGHT); ctx.fillStyle='#d9a34c';ctx.globalAlpha=.08;ctx.beginPath();ctx.arc(1060,85,140+Math.sin(t)*4,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1; text('SUNSEED',46,59,19,'#ffd16e','left',900); text('MIRROR GARDEN  /  SECTOR 01',1234,59,15,'#8fa9ac','right',750); }
+  function board(s,t,chosen=0) {
+    const l=LEVELS[s.level]; ctx.fillStyle='#17262a';ctx.fillRect(255,116,728,492);ctx.strokeStyle='#34484a';ctx.lineWidth=2;ctx.strokeRect(255,116,728,492);
+    for(let y=0;y<9;y++)for(let x=0;x<12;x++){ctx.strokeStyle='rgba(160,190,175,.08)';ctx.strokeRect(left+x*cell,top+y*cell,cell,cell);}
+    for(const [i,[x,y]] of l.blocked.entries()){if(s.lifted&&i===0)continue;const [cx,cy]=pos([x,y]);ctx.fillStyle='#334249';ctx.beginPath();ctx.roundRect(cx-22,cy-22,44,44,5);ctx.fill();ctx.strokeStyle='#59676c';ctx.stroke();}
+    for(const b of s.beams) line(b.from,b.to,b.color,b.active,t);
+    const [sx,sy]=pos(l.source);ctx.fillStyle='#ffe29a';ctx.shadowColor='#ffd462';ctx.shadowBlur=20;ctx.beginPath();ctx.arc(sx,sy,17,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;text('SUN',sx,sy+43,11,'#ffd16e','center',850);
+    if(s.lifted){const [bx,by]=pos(l.seed);const [tx,ty]=pos(l.mirrors[1]);ctx.strokeStyle='#7bcc8a';ctx.lineWidth=8;ctx.beginPath();ctx.moveTo(bx,by);ctx.lineTo(tx,ty);ctx.stroke();for(let yy=ty+50;yy<by;yy+=40){ctx.fillStyle='#76c78a';ctx.beginPath();ctx.ellipse(bx+(yy%80?12:-12),yy,17,7,-.5,0,7);ctx.fill();}text('GROWTH LIFTS M2',bx+36,by-50,12,'#a6ecc3','left',850);}
+    for(const [idx,base] of l.mirrors.entries()){const c=idx===1&&!s.lifted?[base[0]+1,base[1]+2]:base;const [cx,cy]=pos(c);if(chosen===idx){ctx.strokeStyle='#e8f3d1';ctx.lineWidth=2;ctx.beginPath();ctx.arc(cx,cy,28,0,Math.PI*2);ctx.stroke();}mirror(c[0],c[1],s.mirrors[idx]===0?-Math.PI/4:Math.PI/4,s.lifted);text(`M${idx+1}`,cx+31,cy+5,12,'#c5dfd7','left',800);}
+    seed(l.seed,s.lit,s.lit,t);seed(l.dark,false,false,t);
+    const [gx,gy]=pos(l.goal);ctx.strokeStyle=s.won?'#fff1a0':'#738183';ctx.lineWidth=6;ctx.shadowBlur=s.won?24:0;ctx.shadowColor='#ffec9a';ctx.beginPath();ctx.arc(gx,gy,22,0,Math.PI*2);ctx.stroke();ctx.shadowBlur=0;text('GOAL',gx,gy-31,11,s.won?'#fff1a0':'#8a9692','center',850);
+    text('SOURCE',sx,top-14,11,'#91a5a5','center',800); text('SEED 01',pos(l.seed)[0],pos(l.seed)[1]+40,11,s.lit?'#ffd16e':'#89918a','center',800);text('SEED 02 · DARK',pos(l.dark)[0],pos(l.dark)[1]+33,10,'#7b8581','center',800);
+    ctx.fillStyle='#121d22';ctx.fillRect(1013,145,220,438);ctx.strokeStyle='#34484a';ctx.strokeRect(1013,145,220,438);
+    text('GARDEN LOGIC',1035,181,14,'#90a8a9','left',900);text('A beam is a promise.',1035,224,18,'#e9ebd9');text('Keep it moving.',1035,249,16,'#a8b8ae');
+    ctx.fillStyle=s.lit?'#e2bd67':'#59665f';ctx.beginPath();ctx.arc(1045,296,7,0,7);ctx.fill();text(s.lit?'SEED LIT':'SEED WAITING',1063,302,13,s.lit?'#ffd16e':'#89918a','left',850);
+    ctx.fillStyle=s.lifted?'#7ce2dc':'#59665f';ctx.beginPath();ctx.arc(1045,334,7,0,7);ctx.fill();text(s.lifted?'RELAY LIFTED':'RELAY LOW',1063,340,13,s.lifted?'#83e8dd':'#89918a','left',850);
+    text('SELECTED MIRROR',1035,400,12,'#91a5a5','left',900);text(`M${chosen+1}  ${s.mirrors[chosen]===0?'/':'\\'}`,1035,439,25,'#e2f1e2');text(`${s.mirrors.length} mirrors · 1 living lift`,1035,474,13,'#a2c1b5');
+    text('CLICK MIRROR / SPACE TURN',1035,525,11,'#8ca3a5','left',800);text('R  RESET   Z  UNDO',1035,552,11,'#8ca3a5','left',800);
+    ctx.fillStyle='#132027';ctx.fillRect(0,638,WIDTH,82);text('Z UNDO   R RESET',44,675,17,'#f2d28a','left',900);text(`${s.level+1}/3  ${l.name}`,300,675,19,'#eaf0dc','left',850);text(s.won?'N / CLICK CONTINUE →':`MOVES ${s.moves}`,1235,675,17,s.won?'#ffd16e':'#90a5a6','right',800);
   }
-  function text(value, x, y, size, color, align = 'left', weight = 600) {
-    ctx.font = `${weight} ${size}px ${FONT}`; ctx.fillStyle = color; ctx.textAlign = align; ctx.textBaseline = 'alphabetic'; ctx.fillText(value, x, y);
-  }
-  function rounded(x, y, w, h, r, fill, stroke = null) {
-    ctx.beginPath(); ctx.roundRect(x, y, w, h, r); ctx.fillStyle = fill; ctx.fill();
-    if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 2; ctx.stroke(); }
-  }
-  function flame(state, time) {
-    const intensity = state.flame / 100; const scale = 0.78 + intensity * 0.38 + Math.sin(time * 10) * 0.035 + state.flare * 0.22;
-    ctx.save(); ctx.translate(state.x, 545); ctx.scale(scale, scale);
-    ctx.shadowBlur = 32; ctx.shadowColor = '#ff731f'; ctx.fillStyle = '#ff731f';
-    ctx.beginPath(); ctx.moveTo(0, -112); ctx.bezierCurveTo(-40, -76, -28, -48, -62, -22); ctx.bezierCurveTo(-80, 12, -48, 54, 0, 64); ctx.bezierCurveTo(48, 54, 80, 12, 62, -22); ctx.bezierCurveTo(28, -48, 40, -76, 0, -112); ctx.fill();
-    ctx.shadowBlur = 18; ctx.shadowColor = '#ffd85a'; ctx.fillStyle = '#ffd85a';
-    ctx.beginPath(); ctx.moveTo(0, -70); ctx.bezierCurveTo(-25, -38, -17, -14, -35, 4); ctx.bezierCurveTo(-38, 32, -18, 45, 0, 48); ctx.bezierCurveTo(22, 40, 37, 17, 27, -3); ctx.bezierCurveTo(12, -18, 16, -38, 0, -70); ctx.fill();
-    ctx.shadowBlur = 0; ctx.fillStyle = '#fff1ad'; ctx.beginPath(); ctx.ellipse(0, 23, 14, 27, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
-    if (state.shield) { ctx.strokeStyle = '#9af4e0'; ctx.lineWidth = 4; ctx.globalAlpha = 0.8; ctx.beginPath(); ctx.arc(state.x, 528, state.radius + 22, Math.PI * 1.05, Math.PI * 1.95); ctx.stroke(); ctx.globalAlpha = 1; }
-  }
-  function drawBackdrop(state, time) {
-    const weather = WEATHER[(state.wave - 1) % WEATHER.length];
-    ctx.fillStyle = '#090d16'; ctx.fillRect(0, 0, FIELD.width, FIELD.height);
-    ctx.fillStyle = '#101a27'; ctx.fillRect(0, 102, FIELD.width, 550);
-    ctx.strokeStyle = '#1a2b3a'; ctx.lineWidth = 2;
-    for (let x = 0; x < FIELD.width; x += 64) { ctx.beginPath(); ctx.moveTo(x, 100); ctx.lineTo(x - 120, 652); ctx.stroke(); }
-    ctx.fillStyle = '#131b22'; ctx.fillRect(0, 652, FIELD.width, 68);
-    ctx.fillStyle = '#30404a'; ctx.fillRect(0, 650, FIELD.width, 4);
-    ctx.fillStyle = weather.color; ctx.globalAlpha = 0.1; ctx.fillRect(0, 102, FIELD.width, 4); ctx.globalAlpha = 1;
-    text('THE HOLLOW OF CINDERS', 44, 84, 17, '#718394', 'left', 800);
-    text(`WEATHER  ${weather.name}`, 1236, 84, 17, weather.color, 'right', 800);
-    if (state.wave >= 2) {
-      ctx.strokeStyle = weather.color; ctx.globalAlpha = 0.25; ctx.lineWidth = 1;
-      for (let x = 40; x < FIELD.width; x += 92) { const y = 155 + ((time * 45 + x) % 450); ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + weather.wind * 30, y + 32); ctx.stroke(); }
-      ctx.globalAlpha = 1;
-    }
-  }
-  function hud(state) {
-    rounded(32, 22, 1216, 78, 10, '#0c131d', '#243746');
-    text('EMBERKEEPER', 56, 53, 22, '#ffbd55', 'left', 900); text('FLAME', 246, 49, 12, '#8093a3', 'left', 800);
-    rounded(246, 59, 245, 16, 7, '#17232c'); rounded(246, 59, 245 * state.flame / 100, 16, 7, state.flame > 68 ? '#ff952f' : state.flame > 32 ? '#e75d34' : '#d93b45');
-    text(`${Math.ceil(state.flame)}%`, 501, 73, 16, '#f9e2bd', 'right', 800);
-    text('EMBER RESERVE', 560, 49, 12, '#8093a3', 'left', 800); text(`${state.embers}`, 560, 77, 27, '#ffd36e', 'left', 900);
-    text('WAVE', 676, 49, 12, '#8093a3', 'left', 800); text(`${state.wave}`, 676, 77, 27, '#e8f3f0', 'left', 900);
-    text('SCORE', 770, 49, 12, '#8093a3', 'left', 800); text(`${state.score}`, 770, 77, 27, '#e8f3f0', 'left', 900);
-    const multiplier = state.flame > 70 ? 'x2.0' : state.flame > 35 ? 'x1.2' : 'x0.7';
-    text('MULTIPLIER', 885, 49, 12, '#8093a3', 'left', 800); text(multiplier, 885, 77, 27, state.flame > 70 ? '#ffbd55' : '#e8f3f0', 'left', 900);
-    text('SHIELD', 1030, 49, 12, '#8093a3', 'left', 800); text(state.shield ? `READY x${state.shield}` : 'EMPTY', 1030, 77, 19, state.shield ? '#8de6db' : '#6c7984', 'left', 800);
-  }
-  function upgrades(state) {
-    const y = 610; text('EMBER DECISION', 42, y - 18, 13, '#9cabb5', 'left', 900);
-    const first = state.selected === 0 ? '#ffb347' : '#30424c'; const second = state.selected === 1 ? '#ffb347' : '#30424c';
-    rounded(42, y, 300, 84, 8, '#111d27', first); rounded(358, y, 300, 84, 8, '#111d27', second);
-    text('1  WIDE CATCH', 62, y + 30, 17, '#ffe2ab', 'left', 900); text('3 embers  |  +22 radius', 62, y + 56, 14, '#a5b4bc');
-    text('2  TEMPER / SHIELD', 378, y + 30, 17, '#b6f4e8', 'left', 900); text('3 embers  |  block one rain', 378, y + 56, 14, '#a5b4bc');
-    text('F / click to feed', 690, y + 28, 17, '#ffcf70', 'left', 800); text('+22 life · +12 score', 690, y + 54, 14, '#8296a4', 'left', 600);
-    text('E buys selected  ·  x2 score above 70% life', 690, y + 76, 12, '#8296a4', 'left', 600);
-    if (state.storm > 0) { rounded(990, y + 6, 254, 64, 8, '#263045', '#b6f4e8'); text('STORM BREAK', 1117, y + 29, 17, '#b6f4e8', 'center', 900); text(`S to spend 35 score  ${Math.ceil(state.storm)}s`, 1117, y + 52, 13, '#d4e8e7', 'center', 700); }
-  }
-  function world(state, time) {
-    drawBackdrop(state, time);
-    for (const item of state.items) {
-      if (item.kind === EMBER) { ctx.save(); ctx.shadowBlur = 18; ctx.shadowColor = '#ff9b38'; ctx.fillStyle = '#ffb347'; ctx.translate(item.x, item.y); ctx.rotate(item.phase); ctx.beginPath(); ctx.moveTo(0, -item.r); ctx.lineTo(item.r * 0.74, 0); ctx.lineTo(0, item.r); ctx.lineTo(-item.r * 0.74, 0); ctx.closePath(); ctx.fill(); ctx.fillStyle = '#fff0a6'; ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
-      else { ctx.strokeStyle = '#8ec8f0'; ctx.lineWidth = 4; ctx.globalAlpha = 0.82; ctx.beginPath(); ctx.moveTo(item.x, item.y - 16); ctx.lineTo(item.x + item.vx * 0.035, item.y + 12); ctx.stroke(); ctx.globalAlpha = 1; }
-    }
-    flame(state, time);
-    for (const p of state.particles) { ctx.globalAlpha = Math.max(0, p.life / p.max); ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill(); } ctx.globalAlpha = 1;
-  }
-  function panel(state, screen, best) {
-    ctx.fillStyle = 'rgba(5, 9, 15, 0.76)'; ctx.fillRect(0, 0, FIELD.width, FIELD.height);
-    if (screen === 'title') {
-      text('EMBERKEEPER', 640, 190, 78, '#ffbd55', 'center', 950); text('GUARD THE LAST SACRED FLAME', 640, 227, 20, '#b9c9cd', 'center', 800);
-      ctx.shadowBlur = 34; ctx.shadowColor = '#ff7b24'; ctx.fillStyle = '#ff9b38'; ctx.beginPath(); ctx.arc(640, 329, 76, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
-      text('CATCH EMBERS. DODGE RAIN. DECIDE WHAT SURVIVES.', 640, 447, 21, '#eff7ee', 'center', 800);
-      text('← → / A D   MOVE', 640, 486, 17, '#8fa5ad', 'center', 700); text('F / click flame   FEED', 640, 514, 17, '#ffcf70', 'center', 700); text('1 / 2   CHOOSE   •   E / click card   BUY', 640, 542, 17, '#8de6db', 'center', 700);
-      rounded(488, 579, 304, 62, 10, '#ff9b38'); text('START  [SPACE]', 640, 619, 23, '#161b20', 'center', 900);
-      text(`BEST SCORE  ${best}`, 640, 678, 16, '#7d919b', 'center', 700);
-    } else {
-      text('THE FLAME HAS GONE QUIET', 640, 230, 52, '#ff9d48', 'center', 950); text('The hollow remembers every ember you kept.', 640, 272, 20, '#bdcbd0', 'center', 700);
-      text(`${state.score}`, 640, 390, 86, '#f5f7dc', 'center', 950); text('FINAL SCORE', 640, 421, 15, '#8599a3', 'center', 900);
-      text(`BEST  ${best}`, 540, 475, 22, '#ffca69', 'center', 800); text(`WAVE  ${state.wave}`, 740, 475, 22, '#8de6db', 'center', 800);
-      rounded(488, 544, 304, 62, 10, '#ff9b38'); text('RESTART  [SPACE]', 640, 584, 23, '#161b20', 'center', 900);
-    }
-  }
-  function draw(state, screen, best, time) {
-    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#090d16'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.setTransform(view.scale, 0, 0, view.scale, view.x + (state.shake ? Math.sin(time * 80) * state.shake : 0), view.y + (state.shake ? Math.cos(time * 91) * state.shake * 0.5 : 0));
-    world(state, time); if (screen === SCREEN_PLAY) { hud(state); upgrades(state); } else panel(state, screen, best);
-    if (state.hitFlash) { ctx.fillStyle = `rgba(130, 190, 235, ${state.hitFlash * 0.28})`; ctx.fillRect(0, 0, FIELD.width, FIELD.height); }
-  }
-  resize(); window.addEventListener('resize', resize); return { draw };
+  function panel(screen,best,score) {ctx.fillStyle='rgba(6,12,17,.82)';ctx.fillRect(0,0,WIDTH,HEIGHT);if(screen==='title'){text('SUNSEED',640,188,86,'#ffd16e','center',950);text('ROUTE THE LIGHT. GROW THE PATH.',640,232,23,'#bdcfca','center',850);text('A seed that grows can lift the next mirror.',640,297,23,'#f0eedb','center',700);text('Turn mirrors · light a seed · change the world · reach the goal',640,337,18,'#a9bbb5','center',650);seed([6,4],true,true,performance.now()/1000);seed([8,4],false,false,0);line([2,4],[5,4],'#ffd76a',true,0);text('CLICK MIRROR OR ARROWS + SPACE TO TURN',640,478,16,'#c5d5cc','center',750);text('Z UNDO  ·  R RESTART',640,507,15,'#91a5a5','center',700);ctx.fillStyle='#ffc65c';ctx.beginPath();ctx.roundRect(493,544,294,64,9);ctx.fill();text('START  [SPACE]',640,586,23,'#1c2422','center',950);text(`BEST  ${best}`,640,657,16,'#829694','center',750);}else{text(screen==='win'?'GARDEN AWAKENED':'THE LIGHT FELL SHORT',640,226,51,screen==='win'?'#ffd16e':'#c7d0c5','center',950);text(screen==='win'?'Every mirror remembers the seed.':'The garden is ready for another path.',640,273,21,'#b3c4bd','center',700);text(`${score}`,640,372,78,'#f3f0d8','center',950);text('GARDEN SCORE',640,405,14,'#8fa4a2','center',850);text(`BEST  ${best}`,540,457,21,'#ffd16e','center',800);text('LEVELS  3',740,457,21,'#87e1d6','center',800);ctx.fillStyle='#ffc65c';ctx.beginPath();ctx.roundRect(493,520,294,64,9);ctx.fill();text('PLAY AGAIN  [SPACE]',640,562,21,'#1c2422','center',950);}}
+  function draw(state,screen,best,score,time,chosen=0){ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle='#101a26';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.setTransform(scale,0,0,scale,ox,oy);background(time);if(screen==='play'){board(state,time,chosen);if(state.won){ctx.fillStyle='rgba(255,212,100,.16)';ctx.fillRect(255,116,728,492);text('PATH COMPLETE  ·  PRESS N TO CONTINUE',619,127,15,'#fff2ae','center',900);}}else panel(screen,best,score);}
+  resize();window.addEventListener('resize',resize);return{draw};
 }

@@ -1,27 +1,35 @@
-import { BEST_KEY, STEP } from './config.js';
-import { createRandom } from './random.js';
-import { createWorld, CATCH, HIT, BUY, FEED, OVER } from './world.js';
-import { createInput } from './input.js';
-import { createSound } from './sound.js';
-import { createRenderer, SCREEN_OVER, SCREEN_PLAY, SCREEN_TITLE } from './render.js';
-import { stageShot } from './shots.js';
+import {BEST_KEY,LEVELS} from './config.js';
+import {createWorld} from './world.js';
+import {createInput} from './input.js';
+import {createRenderer} from './render.js';
+import {createSound} from './sound.js';
+import {stageShot} from './shots.js';
 
-const params = new URLSearchParams(location.search); const shot = params.get('shot');
-const seedParam = Number.parseInt(params.get('seed') || '', 10); const seed = Number.isInteger(seedParam) ? seedParam : 2046;
-const canvas = document.getElementById('game'); const status = document.getElementById('status');
-const world = createWorld(createRandom(seed)); const renderer = createRenderer(canvas); const sound = createSound();
-function bestScore() { try { return Number(localStorage.getItem(BEST_KEY)) || 0; } catch { return 0; } }
-function saveScore(score) { try { if (score > bestScore()) localStorage.setItem(BEST_KEY, String(score)); } catch {} }
-function runShot(name) { const staged = stageShot(name, world); let frames = 0; function paint() { renderer.draw(world.state, staged.screen, staged.best, performance.now() / 1000); if (++frames < 3) requestAnimationFrame(paint); else window.__shotReady = true; } requestAnimationFrame(paint); }
-function run() {
-  const input = createInput(canvas); let screen = SCREEN_TITLE; let best = bestScore(); let last = performance.now(); let accumulator = 0; let time = 0;
-  function start() { world.reset(); screen = SCREEN_PLAY; status.textContent = 'Playing. Catch embers and protect the sacred flame.'; sound.feed(); }
-  function end() { screen = SCREEN_OVER; best = Math.max(best, world.state.score); saveScore(world.state.score); status.textContent = `Flame lost. Score ${world.state.score}.`; sound.end(); }
-  function handle(action) { let clickBuy = false; let clickFeed = false; for (const click of action.clicks) { if (screen !== SCREEN_PLAY) { if (click.y > 545 && click.y < 660) start(); } else if (click.y > 610) { if (click.x > 358 && click.x < 658) { if (world.state.selected === 1) clickBuy = true; else { world.state.selected = 1; sound.upgrade(); } } else if (click.x > 42 && click.x < 342) { if (world.state.selected === 0) clickBuy = true; else { world.state.selected = 0; sound.upgrade(); } } else if (click.x > 680 && click.x < 980) clickFeed = true; } }
-    if (action.start && (screen === SCREEN_TITLE || screen === SCREEN_OVER)) start();
-    if (screen === SCREEN_PLAY) { if (action.select !== null) world.state.selected = action.select; if (action.feed || clickFeed) sound.feed(); if (action.buy || clickBuy) sound.upgrade(); if (action.storm) sound.upgrade(); action.clickBuy = clickBuy; action.clickFeed = clickFeed; }
-  }
-  function frame(now) { requestAnimationFrame(frame); const dt = Math.min(0.1, (now - last) / 1000); last = now; accumulator += dt; time += dt; const action = input.take(); handle(action); let pending = { feed: Boolean(action.feed || action.clickFeed), buy: Boolean(action.buy || action.clickBuy), storm: Boolean(action.storm) }; while (accumulator >= STEP && screen === SCREEN_PLAY) { const events = world.step(STEP, input.direction(), pending); pending = { feed: false, buy: false, storm: false }; if (events & CATCH) sound.catch(); if (events & HIT) sound.rain(); if (events & BUY) sound.upgrade(); if (events & FEED) sound.feed(); if (events & OVER) end(); accumulator -= STEP; } if (screen !== SCREEN_PLAY) accumulator = 0; renderer.draw(world.state, screen, best, time); }
-  status.textContent = 'Emberkeeper. Press Space or click Start.'; requestAnimationFrame(frame);
+const canvas=document.getElementById('game'),status=document.getElementById('status');
+const world=createWorld(),input=createInput(canvas),renderer=createRenderer(canvas),sound=createSound();
+let screen='title',best=0,score=0,chosen=0;
+try{best=Number(localStorage.getItem(BEST_KEY))||0;}catch{}
+function announce(){status.textContent=screen==='win'?`Garden awakened. Score ${score}.`: `Level ${world.state.level+1}. ${world.state.lit?'Seed grown. Relay lifted.':'Seed dark.'} ${world.state.won?'Goal lit. N or click Continue.':'Route sunlight to the goal.'}`;}
+function start(){world.reset();score=0;chosen=0;screen='play';announce();sound('grow');}
+function next(){score+=Math.max(100,600-world.state.moves*25);if(world.state.level===2){screen='win';best=Math.max(best,score);try{localStorage.setItem(BEST_KEY,String(best));}catch{}}else{world.reset(world.state.level+1);chosen=0;}announce();sound('win');}
+function turn(index){const was=world.state.lit;world.rotate(index);announce();sound(world.state.won?'win':!was&&world.state.lit?'grow':'turn');}
+function actions(){
+ const {keys,clicks}=input.take();
+ if(screen!=='play'){if(keys.has('Space')||keys.has('Enter')||clicks.some(p=>p.y>520&&p.y<615))start();return;}
+ if(keys.has('KeyR')){world.reset(world.state.level);chosen=0;announce();}
+ if(keys.has('KeyZ')||keys.has('KeyU')){world.undo();announce();sound();}
+ if(keys.has('ArrowRight')||keys.has('ArrowDown'))chosen=(chosen+1)%world.state.mirrors.length;
+ if(keys.has('ArrowLeft')||keys.has('ArrowUp'))chosen=(chosen+world.state.mirrors.length-1)%world.state.mirrors.length;
+ if(keys.has('KeyN')&&world.state.won){next();return;}
+ if(keys.has('Space')||keys.has('Enter'))turn(chosen);
+ for(const p of clicks){
+  if(p.y>600&&p.x<150){world.undo();announce();continue;}
+  if(p.y>600&&p.x<250){world.reset(world.state.level);announce();continue;}
+  if(world.state.won&&p.y>600&&p.x>900){next();return;}
+  const index=world.state.mirrors.findIndex((_,i)=>{const c=world.mirrorPosition(i);return Math.hypot(p.x-(286+(c[0]+.5)*54),p.y-(136+(c[1]+.5)*54))<30;});
+  if(index>=0){chosen=index;turn(index);}
+ }
 }
-if (shot) runShot(shot); else run();
+const shot=new URLSearchParams(location.search).get('shot');
+if(shot){const scene=stageShot(shot,world);let frames=0;function paint(){renderer.draw(world.state,scene.screen,scene.best,scene.score,2,1);if(++frames<3)requestAnimationFrame(paint);else window.__shotReady=true;}requestAnimationFrame(paint);}
+else{function frame(now){requestAnimationFrame(frame);actions();renderer.draw(world.state,screen,best,score,now/1000,chosen);window.__sunseedState={screen,...world.state,mirrors:world.state.mirrors.slice()};}requestAnimationFrame(frame);}
