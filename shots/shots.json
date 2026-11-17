@@ -1,0 +1,6 @@
+[
+  {"name":"1-cover.jpg","query":"?shot=cover","description":"Initial water wasting to drain."},
+  {"name":"2-fed.jpg","query":"?shot=fed","description":"Water flowing into beds."},
+  {"name":"3-start.jpg","query":"?shot=start","description":"Readable bloom-all-beds goal."},
+  {"name":"4-win.jpg","query":"?shot=win","description":"All flowers and final score."}
+]

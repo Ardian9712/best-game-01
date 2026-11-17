@@ -1,5 +1,6 @@
 [
-  { "name": "1-cover.jpg", "query": "?shot=play&seed=1", "description": "Cover: sunlight is deflected by a mirror into a seed, whose grown stem lifts the relay mirror and reveals a path to the goal; a second seed remains dark." },
-  { "name": "2-title.jpg", "query": "?shot=start&seed=1", "description": "Sunseed title screen with objective, mirror controls, and start prompt." },
-  { "name": "3-win.jpg", "query": "?shot=end&seed=1", "description": "Garden awakened screen with score, best score, and replay prompt." }
+  { "name": "1-cover.jpg", "query": "?shot=cover", "description": "Initial Tidegate state: limited reservoir, gold rotary gate, water wasting through the drain, and one already-bloomed bed." },
+  { "name": "2-fed.jpg", "query": "?shot=fed", "description": "Fed state: gate turned toward the beds, blue water flowing down the active branch, one bed filling, drain dry." },
+  { "name": "3-start.jpg", "query": "?shot=start", "description": "Start screen: the readable goal is to bloom every bed before the water runs out." },
+  { "name": "4-win.jpg", "query": "?shot=win", "description": "Victory state: Tidegate complete with all flowers and final score." }
 ]
