@@ -1,9 +1,11 @@
-// A working best-game-01 entry (Node 22, standard library only): the game is this directory's
+// Tidegate — a best-game-01 entry (Node 22, standard library only): the game is this directory's
 // game/ folder, plain static files a desktop browser loads offline (game/index.html and its ES
 // modules, no library and no network request), and the program hands it in. It copies game/ and
 // screenshots/ from beside this file to /output and writes /output/dossier.json, the summary the
-// judge reads, with the vendored make.fun library. Emberkeeper is a deterministic canvas game
-// where a keeper catches embers, chooses between flame growth and upgrades, and survives weather.
+// judge reads, with the vendored make.fun library. Tidegate is a puzzle game about dividing a
+// limited reservoir of water: one rotary gate sends the flow to three beds or to the drain, and the
+// goal is to bloom every bed before the water runs out. Score is wasted water x15 plus steps x10
+// (lower is better); undo restores water, including water still travelling in a channel.
 // (any genre, any library you vendor under game/, or none), put your 3 or 4 PNG or JPEG screenshots
 // in screenshots/ (the first by name is the cover) and run it.
 //
